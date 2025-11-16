@@ -5,24 +5,23 @@
     <title>Отчёты</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
         .metrics { display:flex; gap:20px; justify-content:center; margin:20px 0; }
         .metric { text-align:center; padding:10px 15px; background:#1e1e1e; border-radius:8px; }
         .metric .number { font-size:20px; font-weight:700; }
-    .chart-container { background:#121212; padding:12px; border-radius:8px; position:relative; }
+        .chart-container { background:#121212; padding:12px; border-radius:8px; position:relative; }
         table { width:100%; border-collapse:collapse; margin-top:20px; }
         th, td { padding:8px 10px; border-bottom:1px solid #2b2b2b; }
         thead th { background:#151515; cursor:pointer; }
         canvas { max-height:100%; }
-        /* Canvas wrapper to position overlay exactly over chart area */
         .chart-canvas-wrap { position: relative; height: 140px; }
-        /* No-data message styling: centered overlay inside the canvas wrapper */
         .reports-page .no-data-message {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            display: none; /* shown only when no data */
+            display: none; 
             align-items: center;
             justify-content: center;
             padding: 8px 12px;
@@ -35,6 +34,13 @@
             text-align: center;
             min-width: 80px;
         }
+        .gantt-task {
+            margin: 2px 0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -42,7 +48,6 @@
     <h1 style="text-align:center;">Отчёты</h1>
     <div style="text-align:center; margin-bottom:12px;"><a href="{{ url_for('index') }}">← Назад к задачам</a></div>
 
-    <!-- Метрики -->
     <div class="metrics">
         <div class="metric">
             <div class="number">{{ total|default(0) }}</div>
@@ -62,9 +67,7 @@
         </div>
     </div>
 
-    <!-- Top charts: two bar charts in row and one doughnut below -->
     <div class="charts" style="margin:12px 0;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;">
-        <!-- Bar charts row -->
         <div style="display:flex;width:100%;gap:16px;justify-content:center;margin-bottom:16px;">
             <div class="chart-container" style="width:45%;min-width:300px;max-width:450px;height:180px;">
                 <h3 style="text-align:center;margin:0 0 8px 0;">Распределение по статусам</h3>
@@ -81,7 +84,6 @@
                 </div>
             </div>
         </div>
-        <!-- Doughnut chart below -->
             <div class="chart-container" style="width:45%;min-width:300px;max-width:450px;height:180px;">
             <h3 style="text-align:center;margin:0 0 8px 0;">Просроченные задачи</h3>
             <div class="chart-canvas-wrap" style="height:140px;">
@@ -91,7 +93,6 @@
         </div>
     </div>
 
-    <!-- Таблица задач -->
     <h2 style="text-align:center; margin-top:36px;">Задачи</h2>
     <div style="text-align:center; margin:12px 0;">
         <label>Исполнитель: 
@@ -125,16 +126,13 @@
             </tr>
         </thead>
         <tbody id="tasksBody">
-            <!-- filled by JS -->
+
         </tbody>
     </table>
 
 </div>
 
-<!-- Embed JSON data safely (use fallbacks when vars undefined) -->
-    <!-- Charts below the table (same structure as top) -->
     <div class="charts" style="margin:20px 0;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;">
-        <!-- Bar charts row -->
         <div style="display:flex;width:100%;gap:16px;justify-content:center;margin-bottom:16px;">
             <div class="chart-container" style="width:45%;min-width:300px;max-width:450px;height:180px;">
                 <h3 style="text-align:center;margin:0 0 8px 0;">Распределение по статусам (по таблице)</h3>
@@ -151,7 +149,6 @@
                 </div>
             </div>
         </div>
-        <!-- Doughnut chart below -->
             <div class="chart-container" style="width:45%;min-width:300px;max-width:450px;height:180px;">
             <h3 style="text-align:center;margin:0 0 8px 0;">Просроченные задачи (по таблице)</h3>
             <div class="chart-canvas-wrap" style="height:140px;">
@@ -160,6 +157,18 @@
             </div>
         </div>
     </div>
+
+    <!-- Диаграмма Ганта -->
+    <div style="margin-top: 40px; padding: 0 20px;">
+        <h2 style="text-align:center;">Диаграмма Ганта</h2>
+        <div class="chart-container" style="width: 100%; height: 500px; overflow-x: auto;">
+            <div class="chart-canvas-wrap" style="height: 480px; min-width: 800px;">
+                <canvas id="ganttChart"></canvas>
+                <div id="ganttNoData" class="no-data-message">Нет данных для отображения диаграммы Ганта</div>
+            </div>
+        </div>
+    </div>
+
 {% if status_counts is defined %}
 <script id="status-data" type="application/json">{{ status_counts | tojson | safe }}</script>
 {% else %}
@@ -179,12 +188,10 @@
 {% endif %}
 
 <script>
-// Read embedded JSON
 const statusData = JSON.parse(document.getElementById('status-data').textContent || '{}');
 const priorityData = JSON.parse(document.getElementById('priority-data').textContent || '{}');
 const tasks = JSON.parse(document.getElementById('tasks-data').textContent || '[]');
 
-// Utility: render table body from tasks list
 function renderTable(list){
     const tbody = document.getElementById('tasksBody');
     tbody.innerHTML = '';
@@ -206,25 +213,217 @@ function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; });
 }
 
-// Filters
 const assigneeFilter = document.getElementById('assigneeFilter');
 const statusFilter = document.getElementById('statusFilter');
-assigneeFilter.addEventListener('change', applyFilters);
-statusFilter.addEventListener('change', applyFilters);
+
+let filteredTasks = tasks.slice(); 
+let sortState = { index: null, asc: true };
 
 function applyFilters(){
     const a = assigneeFilter.value;
     const s = statusFilter.value;
-    const filtered = tasks.filter(t=>{
+    filteredTasks = tasks.filter(t=>{
         if(a && (t.assignee||'') !== a) return false;
         if(s && (t.status||'') !== s) return false;
         return true;
     });
-    renderTable(filtered);
-    updateChartsFromTasks(filtered);
+    if(sortState.index !== null) {
+        sortByColumn(sortState.index, sortState.asc);
+    } else {
+        renderTable(filteredTasks);
+        updateChartsFromTasks(filteredTasks);
+    }
 }
 
-// Update bottom charts based on filtered tasks
+function sortByColumn(colIndex, asc){
+    const th = document.querySelectorAll('#tasksTable thead th')[colIndex];
+    const type = th ? th.dataset.type : 'string';
+    filteredTasks.sort((a,b)=>{
+        let va, vb;
+        switch(colIndex){
+            case 0: 
+                va = Number(a.id||0); vb = Number(b.id||0); break;
+            case 4: 
+                va = a.due_date ? new Date(a.due_date) : new Date(0);
+                vb = b.due_date ? new Date(b.due_date) : new Date(0); break;
+            case 1:
+                va = (a.title||'').toString().toLowerCase(); vb = (b.title||'').toString().toLowerCase(); break;
+            case 2: 
+                va = (a.assignee||'').toString().toLowerCase(); vb = (b.assignee||'').toString().toLowerCase(); break;
+            case 3:
+                va = (a.priority||'').toString().toLowerCase(); vb = (b.priority||'').toString().toLowerCase(); break;
+            case 5: 
+                va = (a.status||'').toString().toLowerCase(); vb = (b.status||'').toString().toLowerCase(); break;
+            default:
+                va = (a.title||'').toString().toLowerCase(); vb = (b.title||'').toString().toLowerCase();
+        }
+        if(va < vb) return asc ? -1 : 1;
+        if(va > vb) return asc ? 1 : -1;
+        return 0;
+    });
+    sortState = { index: colIndex, asc: asc };
+    renderTable(filteredTasks);
+    updateChartsFromTasks(filteredTasks);
+}
+
+// Диаграмма Ганта
+function prepareGanttData(tasksList) {
+    const tasksWithDates = tasksList.filter(task => task.due_date);
+    
+    if (tasksWithDates.length === 0) {
+        return { tasks: [], assignees: [], dateRange: [] };
+    }
+    
+    const sortedTasks = tasksWithDates.sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+    const assignees = [...new Set(sortedTasks.map(task => task.assignee || 'Не назначен'))];
+    
+    // Определяем диапазон дат
+    const dates = sortedTasks.map(task => new Date(task.due_date));
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(Math.max(...dates));
+    
+    // Добавляем немного места по краям
+    minDate.setDate(minDate.getDate() - 2);
+    maxDate.setDate(maxDate.getDate() + 2);
+    
+    return {
+        tasks: sortedTasks,
+        assignees: assignees,
+        minDate: minDate,
+        maxDate: maxDate
+    };
+}
+
+function renderGanttChart(tasksList) {
+    const ganttData = prepareGanttData(tasksList);
+    const ctx = document.getElementById('ganttChart').getContext('2d');
+    
+    const hasData = ganttData.tasks.length > 0;
+    const ganttCanvas = document.getElementById('ganttChart');
+    const ganttOverlay = document.getElementById('ganttNoData');
+    
+    ganttOverlay.style.display = hasData ? 'none' : 'flex';
+    ganttCanvas.style.opacity = hasData ? '1' : '0.35';
+    
+    if (!hasData) {
+        if (window.ganttChartInstance) {
+            window.ganttChartInstance.destroy();
+        }
+        return;
+    }
+    
+    // Уничтожаем предыдущий график если есть
+    if (window.ganttChartInstance) {
+        window.ganttChartInstance.destroy();
+    }
+    
+    // Создаем данные для диаграммы
+    const datasets = ganttData.assignees.map((assignee, index) => {
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+        const color = colors[index % colors.length];
+        
+        const assigneeTasks = ganttData.tasks.filter(task => 
+            (task.assignee || 'Не назначен') === assignee
+        );
+        
+        const dataPoints = assigneeTasks.map(task => {
+            const dueDate = new Date(task.due_date);
+            // Создаем небольшой диапазон для отображения точки
+            const startDate = new Date(dueDate);
+            startDate.setDate(startDate.getDate() - 0.5);
+            const endDate = new Date(dueDate);
+            endDate.setDate(endDate.getDate() + 0.5);
+            
+            return {
+                x: [startDate, endDate],
+                y: assignee,
+                task: task.title,
+                status: task.status,
+                priority: task.priority,
+                due_date: task.due_date
+            };
+        });
+        
+        return {
+            label: assignee,
+            data: dataPoints,
+            backgroundColor: color + '80', // добавляем прозрачность
+            borderColor: color,
+            borderWidth: 2,
+            barPercentage: 0.6,
+            categoryPercentage: 0.8
+        };
+    });
+    
+    window.ganttChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            datasets: datasets
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day',
+                        tooltipFormat: 'dd.MM.yyyy',
+                        displayFormats: {
+                            day: 'dd.MM'
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Дата выполнения'
+                    },
+                    min: ganttData.minDate,
+                    max: ganttData.maxDate,
+                    grid: {
+                        color: '#2b2b2b'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Исполнители'
+                    },
+                    grid: {
+                        color: '#2b2b2b'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        color: '#ffffff'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            const task = context[0].raw;
+                            return task.task;
+                        },
+                        label: function(context) {
+                            const task = context.raw;
+                            return [
+                                `Исполнитель: ${task.y}`,
+                                `Срок: ${task.due_date}`,
+                                `Статус: ${task.status}`,
+                                `Приоритет: ${task.priority}`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
 function updateChartsFromTasks(list){
     const sc = {};
     const pc = {};
@@ -239,10 +438,8 @@ function updateChartsFromTasks(list){
         }
     });
 
-    // update status chart
     const hasStatus = Object.values(sc).length > 0;
     const statusCanvas = document.getElementById('statusChartBottom');
-    // show overlay message on top of the chart when no data
     const statusOverlay = document.getElementById('statusNoData');
     statusOverlay.style.display = hasStatus ? 'none' : 'flex';
     statusCanvas.style.opacity = hasStatus ? '1' : '0.35';
@@ -250,7 +447,6 @@ function updateChartsFromTasks(list){
     statusChart.data.datasets[0].data = Object.values(sc);
     statusChart.update();
 
-    // update priority chart
     const hasPriority = Object.values(pc).length > 0;
     const priorityCanvas = document.getElementById('priorityChartBottom');
     const priorityOverlay = document.getElementById('priorityNoData');
@@ -260,7 +456,6 @@ function updateChartsFromTasks(list){
     priorityChart.data.datasets[0].data = Object.values(pc);
     priorityChart.update();
 
-    // update overdue chart
     const hasOverdue = Object.values(overdueByAssignee).length > 0;
     const overdueCanvas = document.getElementById('overdueChartBottom');
     const overdueOverlay = document.getElementById('overdueNoData');
@@ -269,9 +464,12 @@ function updateChartsFromTasks(list){
     overdueChart.data.labels = Object.keys(overdueByAssignee);
     overdueChart.data.datasets[0].data = Object.values(overdueByAssignee);
     overdueChart.update();
+
+    // Обновляем диаграмму Ганта
+    renderGanttChart(list);
 }
 
-// compute overdue by assignee for TOP charts (global)
+// Инициализация графиков при загрузке
 const overdueTasksTop = tasks.filter(t => t && t.due_date && t.status !== 'Готово' && new Date(t.due_date) < new Date(new Date().setHours(0,0,0,0)));
 const overdueByAssigneeTop = {};
 overdueTasksTop.forEach(t => {
@@ -279,7 +477,6 @@ overdueTasksTop.forEach(t => {
     overdueByAssigneeTop[a] = (overdueByAssigneeTop[a] || 0) + 1;
 });
 
-// Initialize TOP charts (2 bars and 1 doughnut)
 const statusCtxTop = document.getElementById('statusChartTop').getContext('2d');
 const statusChartTop = new Chart(statusCtxTop, {
     type: 'bar',
@@ -350,30 +547,7 @@ const overdueChartTop = new Chart(overdueCtxTop, {
     }
 });
 
-// Top overlays: show 'no data' overlay and dim charts when needed
-(function initTopOverlays(){
-    const statusTopHas = Object.values(statusData).length > 0;
-    const priorityTopHas = Object.values(priorityData).length > 0;
-    const overdueTopHas = Object.keys(overdueByAssigneeTop).length > 0;
-
-    const statusCanvasTop = document.getElementById('statusChartTop');
-    const priorityCanvasTop = document.getElementById('priorityChartTop');
-    const overdueCanvasTop = document.getElementById('overdueChartTop');
-
-    const statusOverlayTop = document.getElementById('statusNoDataTop');
-    const priorityOverlayTop = document.getElementById('priorityNoDataTop');
-    const overdueOverlayTop = document.getElementById('overdueNoDataTop');
-
-    statusOverlayTop.style.display = statusTopHas ? 'none' : 'flex';
-    priorityOverlayTop.style.display = priorityTopHas ? 'none' : 'flex';
-    overdueOverlayTop.style.display = overdueTopHas ? 'none' : 'flex';
-
-    statusCanvasTop.style.opacity = statusTopHas ? '1' : '0.35';
-    priorityCanvasTop.style.opacity = priorityTopHas ? '1' : '0.35';
-    overdueCanvasTop.style.opacity = overdueTopHas ? '1' : '0.35';
-})();
-
-// Initialize BOTTOM charts (2 bars and 1 doughnut, updated from filtered table)
+// Инициализация графиков для фильтруемой таблицы
 const statusCtx = document.getElementById('statusChartBottom').getContext('2d');
 const statusChart = new Chart(statusCtx, {
     type: 'bar',
@@ -443,63 +617,8 @@ const overdueChart = new Chart(overdueCtx, {
         }
     }
 });
-</script>
 
-<script>
-// ----- Table filtering/sorting state -----
-let filteredTasks = tasks.slice(); // current list shown in table (after filters/sorting)
-let sortState = { index: null, asc: true };
-
-function applyFilters(){
-    const a = assigneeFilter.value;
-    const s = statusFilter.value;
-    filteredTasks = tasks.filter(t=>{
-        if(a && (t.assignee||'') !== a) return false;
-        if(s && (t.status||'') !== s) return false;
-        return true;
-    });
-    // if currently sorted, keep sort order
-    if(sortState.index !== null) {
-        sortByColumn(sortState.index, sortState.asc);
-    } else {
-        renderTable(filteredTasks);
-        updateChartsFromTasks(filteredTasks);
-    }
-}
-
-// Sorting helper: column index and direction
-function sortByColumn(colIndex, asc){
-    const th = document.querySelectorAll('#tasksTable thead th')[colIndex];
-    const type = th ? th.dataset.type : 'string';
-    filteredTasks.sort((a,b)=>{
-        let va, vb;
-        switch(colIndex){
-            case 0: // id
-                va = Number(a.id||0); vb = Number(b.id||0); break;
-            case 4: // date
-                va = a.due_date ? new Date(a.due_date) : new Date(0);
-                vb = b.due_date ? new Date(b.due_date) : new Date(0); break;
-            case 1: // title
-                va = (a.title||'').toString().toLowerCase(); vb = (b.title||'').toString().toLowerCase(); break;
-            case 2: // assignee
-                va = (a.assignee||'').toString().toLowerCase(); vb = (b.assignee||'').toString().toLowerCase(); break;
-            case 3: // priority
-                va = (a.priority||'').toString().toLowerCase(); vb = (b.priority||'').toString().toLowerCase(); break;
-            case 5: // status
-                va = (a.status||'').toString().toLowerCase(); vb = (b.status||'').toString().toLowerCase(); break;
-            default:
-                va = (a.title||'').toString().toLowerCase(); vb = (b.title||'').toString().toLowerCase();
-        }
-        if(va < vb) return asc ? -1 : 1;
-        if(va > vb) return asc ? 1 : -1;
-        return 0;
-    });
-    sortState = { index: colIndex, asc: asc };
-    renderTable(filteredTasks);
-    updateChartsFromTasks(filteredTasks);
-}
-
-// Attach click handlers to headers for sorting
+// Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', ()=>{
     const headers = document.querySelectorAll('#tasksTable thead th');
     headers.forEach((th, idx)=>{
@@ -507,15 +626,35 @@ document.addEventListener('DOMContentLoaded', ()=>{
         th.addEventListener('click', ()=>{
             const asc = (sortState.index === idx) ? !sortState.asc : true;
             sortByColumn(idx, asc);
-            // simple visual indicator
             headers.forEach(h=> h.classList.remove('sorted-asc','sorted-desc'));
             th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
         });
     });
-    // initial render
+    
     renderTable(filteredTasks);
     updateChartsFromTasks(filteredTasks);
+    
+    // Инициализация оверлеев для верхних графиков
+    const statusTopHas = Object.values(statusData).length > 0;
+    const priorityTopHas = Object.values(priorityData).length > 0;
+    const overdueTopHas = Object.keys(overdueByAssigneeTop).length > 0;
+
+    const statusOverlayTop = document.getElementById('statusNoDataTop');
+    const priorityOverlayTop = document.getElementById('priorityNoDataTop');
+    const overdueOverlayTop = document.getElementById('overdueNoDataTop');
+
+    statusOverlayTop.style.display = statusTopHas ? 'none' : 'flex';
+    priorityOverlayTop.style.display = priorityTopHas ? 'none' : 'flex';
+    overdueOverlayTop.style.display = overdueTopHas ? 'none' : 'flex';
+
+    document.getElementById('statusChartTop').style.opacity = statusTopHas ? '1' : '0.35';
+    document.getElementById('priorityChartTop').style.opacity = priorityTopHas ? '1' : '0.35';
+    document.getElementById('overdueChartTop').style.opacity = overdueTopHas ? '1' : '0.35';
 });
+
+// Назначаем обработчики событий
+assigneeFilter.addEventListener('change', applyFilters);
+statusFilter.addEventListener('change', applyFilters);
 </script>
 </body>
 </html>
