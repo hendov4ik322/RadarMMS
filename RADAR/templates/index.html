@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Задачи</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="container">
+<h1>Список задач</h1>
+<div class="header-links">
+<a href="/create"><i class="fa fa-plus"></i> Создать</a> | 
+<a href="/reports"><i class="fa fa-chart-bar"></i> Отчёты</a>
+<input type="text" id="searchInput" placeholder="Поиск по названию или исполнителю" onkeyup="searchTable()">
+</div>
+
+<table id="tasksTable">
+<thead>
+<tr>
+    <th data-type="number">ID</th>
+    <th data-type="string">Название</th>
+    <th data-type="string">Исполнитель</th>
+    <th data-type="string">Приоритет</th>
+    <th data-type="date">Срок</th>
+    <th data-type="string">Статус</th>
+    <th data-type="string">Действия</th>
+</tr>
+</thead>
+<tbody>
+{% for t in tasks %}
+<tr>
+<td>{{ t.id }}</td>
+<td>{{ t.title }}</td>
+<td>{{ t.assignee or '-' }}</td>
+<td>{{ t.priority }}</td>
+<td>{{ t.due_date }}</td>
+<td>{{ t.status }}</td>
+<td>
+    <!-- Use data attributes and JS event handler instead of inline onclick to avoid template/JS parse issues -->
+    <button class="delete-btn" data-id="{{ t.id }}" data-title="{{ t.title|e }}">
+        <i class="fa fa-trash"></i>
+    </button>
+
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Создать задачу</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="container">
+  <h1>Создать задачу</h1>
+  <form method="post" action="{{ url_for('create_task') }}">
+    <label>Название<br><input name="title" required></label><br>
+    <label>Описание<br><textarea name="description"></textarea></label><br>
+    <label>Исполнитель<br><input name="assignee"></label><br>
+    <label>Приоритет<br>
+      <select name="priority">
+        <option>Низкий</option>
+        <option selected>Средний</option>
+        <option>Высокий</option>
+      </select>
+    </label><br>
+    <label>Срок<br><input type="date" id="due_date" name="due_date"></label><br>
+    <button type="submit">Создать</button>
+  </form>
+  <div><a href="{{ url_for('index') }}">← Назад</a></div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
