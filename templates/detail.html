@@ -31,7 +31,6 @@
 		<button type="submit">Сохранить</button>
 	</form>
 
-	<h3>Удалить</h3>
 	<button class="delete-btn" data-id="{{ task.id }}" data-title="{{ task.title|e }}">
 		<i class="fa fa-trash"></i> Удалить задачу
 	</button>
@@ -40,3 +39,4 @@
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
+
