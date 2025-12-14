@@ -37,7 +37,6 @@
 <td>{{ t.due_date }}</td>
 <td>{{ t.status }}</td>
 <td>
-    <!-- Use data attributes and JS event handler instead of inline onclick to avoid template/JS parse issues -->
     <button class="delete-btn" data-id="{{ t.id }}" data-title="{{ t.title|e }}">
         <i class="fa fa-trash"></i>
     </button>
@@ -51,3 +50,4 @@
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
+
